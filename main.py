@@ -27,7 +27,7 @@ class Application(tk.Tk):
 
         #* Global Settings
         self.title("PII-Search")
-        self.geometry('1250x640')
+        self.geometry('1060x640')
         
         self.configure(bg = 'grey14')
         self.style = ttk.Style()
@@ -71,7 +71,8 @@ class Application(tk.Tk):
             bordercolor    = 'grey10',
             highlightcolor = 'grey16',
             relief         = 'flat',
-            font           = ('Helvetica', 11)
+            font           = ('Helvetica', 11),
+            justify        = 'left'
         )
         self.style.configure(
             "Treeview", 
@@ -85,11 +86,26 @@ class Application(tk.Tk):
         #* Button Style
         self.style.configure(
             "TEntry",
-            background  = 'blue',
-            fieldbackground="grey16",
-            foreground  = 'white',
-            relief      = 'flat',
-            font        = ('Helvetica', 11),
+            background      = 'blue',
+            fieldbackground = "grey16",
+            foreground      = 'white',
+            relief          = 'flat',
+            font            = ('Helvetica', 11)
+        )
+        
+        #* Button Style
+        self.style.configure(
+            "TScrollbar",
+            background       = 'grey10',
+            fieldbackground  = "purple",
+            foreground       = 'yellow',
+            relief           = 'flat',
+            arrowcolor       = 'white',
+            activerelief     = 'flat',
+            troughcolor      = 'grey16',
+            troughrelief     = 'flat',
+            activebackground = 'red'
+            
         )
 
         #* Labels Vars
@@ -120,10 +136,20 @@ class Application(tk.Tk):
         sid_frame = ttk.Frame(main_frame)
         sid_frame.pack(side="left", padx=10)
 
-        ttk.Label(sid_frame, text="SID").pack(side="left", anchor="w", padx=10)
+        ttk.Label(sid_frame, text="UIN").pack(side="left", anchor="w", padx=10)
         self.sid_entry = ttk.Entry(sid_frame, validate="key", width=25)
         self.sid_entry.pack()
         self.sid_entry.bind("<KeyRelease>", self.update_results)
+        
+        #* Frame for Submission ID entry
+        subID_frame = ttk.Frame(main_frame)
+        subID_frame.pack(side="left", padx=10)
+
+        ttk.Label(subID_frame, text="Submission ID").pack(side="left", anchor="w", padx=10)
+        self.subID_entry = ttk.Entry(subID_frame, validate="key", width=25)
+        self.subID_entry.pack()
+        self.subID_entry.bind("<KeyRelease>", self.update_results)        
+        
 
         #* Frame for load button
         button_frame = ttk.Frame(main_frame)
@@ -132,16 +158,38 @@ class Application(tk.Tk):
         load_button = ttk.Button(button_frame, text="Load CSV", command=self.load_csv)
         load_button.pack(side="left", anchor="w", padx=10)
 
+
+        #* Frame for Treeview and Scrollbar
+        tree_frame = ttk.Frame(self)
+        tree_frame.pack(padx=10, pady=10, expand=True, fill="both")
+    
         #* Treeview for results
-        self.result_tree = ttk.Treeview(self, 
-            columns=("1", "2", "3", "4", "5", "6"), show='headings')
-        self.result_tree.heading("1", text="First Name")
-        self.result_tree.heading("2", text="Last Name")
-        self.result_tree.heading("3", text="Submission ID")
-        self.result_tree.heading("4", text="SID")
-        self.result_tree.heading("5", text="Email")
-        self.result_tree.heading("6", text="Sections")
-        self.result_tree.pack(padx=10, pady=10, expand=True, fill="both")
+        self.result_tree = ttk.Treeview(
+            tree_frame, 
+            columns = ("1", "2", "3", "4", "5", "6"), 
+            show    = 'headings',
+            #selectmode='browse'
+        )
+        self.result_tree.heading("1", text="First Name", anchor='w')
+        self.result_tree.column( "1", minwidth=100, width=150)
+        self.result_tree.heading("2", text="Last Name", anchor='w')
+        self.result_tree.column( "2", minwidth=100, width=150)
+        self.result_tree.heading("3", text="Submission ID", anchor='w')
+        self.result_tree.column( "3", minwidth=100, width=125)
+        self.result_tree.heading("4", text="UIN", anchor='w')
+        self.result_tree.column( "4", minwidth=100, width=125)
+        self.result_tree.heading("5", text="Email", anchor='w')
+        self.result_tree.column( "5", minwidth=225, width=250)
+        self.result_tree.heading("6", text="Sections", anchor='w')
+        self.result_tree.column( "6", minwidth=200, width=200)
+        
+        
+        #* Scrollbar for Treeview
+        self.scrollbar = ttk.Scrollbar(tree_frame, command=self.result_tree.yview)
+        self.result_tree.configure(yscrollcommand=self.scrollbar.set)
+
+        self.result_tree.pack(side="left", fill="both", expand=True)
+        self.scrollbar.pack(side="right", fill="y", padx=(0, 10))
 
 
     #> -------------------- PIISearch Main -------------------- <#
@@ -153,11 +201,15 @@ class Application(tk.Tk):
         """ Search entries for match """
         name_search = self.name_entry.get()
         sid_search = self.sid_entry.get()
+        subID_search = self.subID_entry.get()
 
         # Filter dataframe by input
-        df_filtered = self.df[(self.df["First Name"].str.contains(name_search, case=False, na=False) | 
-                            self.df["Last Name"].str.contains(name_search, case=False, na=False)) & 
-                            (self.df["SID"].str.contains(sid_search, na=False) if sid_search else True)]
+        df_filtered = self.df[
+            (self.df["First Name"].str.contains(name_search, case=0, na=0) | 
+            (self.df["Last Name"].str.contains(name_search, case=0, na=0))) & 
+            (self.df["SID"].str.contains(sid_search, na=0) if sid_search else 1) &
+            (self.df["Submission ID"].str.contains(subID_search, na=0) if subID_search else 1)
+        ]
 
         # Update the results in the main GUI thread
         self.after(0, self.display_results, df_filtered)
